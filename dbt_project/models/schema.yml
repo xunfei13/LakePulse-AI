@@ -1,0 +1,68 @@
+version: 2
+
+models:
+  - name: stg_ods_calendar
+    description: "Staged M5 calendar view with normalized dates and weekend flags."
+    columns:
+      - name: d
+        data_tests:
+          - not_null
+          - unique
+      - name: cal_date
+        data_tests:
+          - not_null
+          - unique
+
+  - name: dwd_daily_item_sales
+    description: "Cleaned daily item-store sales fact table aligned with weekly prices."
+    columns:
+      - name: store_id
+        data_tests:
+          - not_null
+      - name: item_id
+        data_tests:
+          - not_null
+      - name: date
+        data_tests:
+          - not_null
+      - name: sales
+        data_tests:
+          - not_null
+      - name: sell_price
+        data_tests:
+          - not_null
+      - name: revenue
+        data_tests:
+          - not_null
+
+  - name: dws_store_daily_summary
+    description: "Store-level daily sales, revenue, and repaired anomaly summary."
+    columns:
+      - name: store_id
+        data_tests:
+          - not_null
+      - name: date
+        data_tests:
+          - not_null
+      - name: total_sales_qty
+        data_tests:
+          - not_null
+      - name: total_revenue
+        data_tests:
+          - not_null
+
+  - name: ops_pipeline_audit
+    description: "Pipeline batch execution audit and data health monitoring table."
+    columns:
+      - name: run_id
+        data_tests:
+          - not_null
+      - name: table_name
+        data_tests:
+          - not_null
+      - name: status
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["SUCCESS", "WARN", "FAILED"]

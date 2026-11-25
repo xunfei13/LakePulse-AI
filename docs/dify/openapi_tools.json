@@ -1,0 +1,938 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "LakePulse-AI Data & Replenishment Gateway",
+    "description": "Read-only DuckDB lakehouse gateway guarded by a sqlglot AST firewall, providing pipeline health inspection, stockout alerts, SKU demand attribution, and controlled analytical SQL tools for Dify AI Agents.",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Check API liveness and available whitelisted lakehouse tables",
+        "operationId": "get_service_health",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceHealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ops/health-summary": {
+      "get": {
+        "summary": "Inspect latest ETL/ML audit statuses and TEST-split model accuracy",
+        "operationId": "check_pipeline_and_model_health",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsHealthSummaryResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/replenishment/alerts": {
+      "get": {
+        "summary": "Query prioritized stockout alerts and replenishment orders",
+        "operationId": "get_replenishment_alerts",
+        "parameters": [
+          {
+            "name": "store_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Store ID e.g. CA_1",
+              "title": "Store Id"
+            },
+            "description": "Store ID e.g. CA_1"
+          },
+          {
+            "name": "abc_class",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "ABC tier: A, B, or C",
+              "title": "Abc Class"
+            },
+            "description": "ABC tier: A, B, or C"
+          },
+          {
+            "name": "risk_level",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Risk tier: HIGH, MEDIUM, or LOW",
+              "title": "Risk Level"
+            },
+            "description": "Risk tier: HIGH, MEDIUM, or LOW"
+          },
+          {
+            "name": "cat_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Category ID e.g. FOODS, HOBBIES, HOUSEHOLD",
+              "title": "Cat Id"
+            },
+            "description": "Category ID e.g. FOODS, HOBBIES, HOUSEHOLD"
+          },
+          {
+            "name": "only_need_order",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Filter to items with recommended_order_qty > 0",
+              "default": true,
+              "title": "Only Need Order"
+            },
+            "description": "Filter to items with recommended_order_qty > 0"
+          },
+          {
+            "name": "max_budget",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional procurement budget cap ($) applied in priority order",
+              "title": "Max Budget"
+            },
+            "description": "Optional procurement budget cap ($) applied in priority order"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "description": "Max rows returned",
+              "default": 50,
+              "title": "Limit"
+            },
+            "description": "Max rows returned"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReplenishmentAlertsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/replenishment/sku-attribution/{store_id}/{item_id}": {
+      "get": {
+        "summary": "Explain demand drivers and safety-stock formula breakdown for a SKU",
+        "operationId": "explain_sku_demand_drivers",
+        "parameters": [
+          {
+            "name": "store_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Store Id"
+            }
+          },
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Item Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SkuDemandAttributionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sql/query": {
+      "post": {
+        "summary": "Execute a read-only SELECT query validated by sqlglot AST firewall",
+        "operationId": "execute_readonly_sql",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SQLQueryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SQLQueryResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AuditItem": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "pipeline_stage": {
+            "type": "string",
+            "title": "Pipeline Stage"
+          },
+          "table_name": {
+            "type": "string",
+            "title": "Table Name"
+          },
+          "finished_at": {
+            "type": "string",
+            "title": "Finished At"
+          },
+          "duration_sec": {
+            "type": "number",
+            "title": "Duration Sec"
+          },
+          "output_rows": {
+            "type": "integer",
+            "title": "Output Rows"
+          },
+          "null_rate": {
+            "type": "number",
+            "title": "Null Rate"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "run_id",
+          "pipeline_stage",
+          "table_name",
+          "finished_at",
+          "duration_sec",
+          "output_rows",
+          "null_rate",
+          "status",
+          "message"
+        ],
+        "title": "AuditItem",
+        "description": "Latest pipeline execution audit summary for a single table."
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "ModelMetricItem": {
+        "properties": {
+          "model_name": {
+            "type": "string",
+            "title": "Model Name"
+          },
+          "eval_split": {
+            "type": "string",
+            "title": "Eval Split"
+          },
+          "sample_count": {
+            "type": "integer",
+            "title": "Sample Count"
+          },
+          "mae": {
+            "type": "number",
+            "title": "Mae"
+          },
+          "rmse": {
+            "type": "number",
+            "title": "Rmse"
+          },
+          "wape_pct": {
+            "type": "number",
+            "title": "Wape Pct"
+          },
+          "r2_score": {
+            "type": "number",
+            "title": "R2 Score"
+          },
+          "is_best_test_wape": {
+            "type": "boolean",
+            "title": "Is Best Test Wape"
+          },
+          "deployed_for_inference": {
+            "type": "boolean",
+            "title": "Deployed For Inference"
+          }
+        },
+        "type": "object",
+        "required": [
+          "model_name",
+          "eval_split",
+          "sample_count",
+          "mae",
+          "rmse",
+          "wape_pct",
+          "r2_score",
+          "is_best_test_wape",
+          "deployed_for_inference"
+        ],
+        "title": "ModelMetricItem",
+        "description": "Model evaluation metrics on the held-out TEST split."
+      },
+      "OpsHealthSummaryResponse": {
+        "properties": {
+          "overall_status": {
+            "type": "string",
+            "title": "Overall Status",
+            "description": "Overall health: SUCCESS, WARN, or FAILED."
+          },
+          "failed_tables": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Failed Tables",
+            "description": "Tables whose latest run ended in FAILED."
+          },
+          "warn_tables": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warn Tables",
+            "description": "Tables whose latest run emitted WARN."
+          },
+          "latest_audits": {
+            "items": {
+              "$ref": "#/components/schemas/AuditItem"
+            },
+            "type": "array",
+            "title": "Latest Audits"
+          },
+          "test_model_metrics": {
+            "items": {
+              "$ref": "#/components/schemas/ModelMetricItem"
+            },
+            "type": "array",
+            "title": "Test Model Metrics"
+          }
+        },
+        "type": "object",
+        "required": [
+          "overall_status",
+          "failed_tables",
+          "warn_tables",
+          "latest_audits",
+          "test_model_metrics"
+        ],
+        "title": "OpsHealthSummaryResponse",
+        "description": "Aggregated pipeline SLA audit and model performance summary."
+      },
+      "ReplenishmentAlertItem": {
+        "properties": {
+          "store_id": {
+            "type": "string",
+            "title": "Store Id"
+          },
+          "state_id": {
+            "type": "string",
+            "title": "State Id"
+          },
+          "cat_id": {
+            "type": "string",
+            "title": "Cat Id"
+          },
+          "dept_id": {
+            "type": "string",
+            "title": "Dept Id"
+          },
+          "item_id": {
+            "type": "string",
+            "title": "Item Id"
+          },
+          "abc_class": {
+            "type": "string",
+            "title": "Abc Class"
+          },
+          "forecast_start_date": {
+            "type": "string",
+            "title": "Forecast Start Date"
+          },
+          "sell_price": {
+            "type": "number",
+            "title": "Sell Price"
+          },
+          "sales_ma_7": {
+            "type": "number",
+            "title": "Sales Ma 7"
+          },
+          "sales_ma_28": {
+            "type": "number",
+            "title": "Sales Ma 28"
+          },
+          "pred_next_7d_sales": {
+            "type": "number",
+            "title": "Pred Next 7D Sales"
+          },
+          "safety_buffer_days": {
+            "type": "number",
+            "title": "Safety Buffer Days"
+          },
+          "safety_stock_qty": {
+            "type": "number",
+            "title": "Safety Stock Qty"
+          },
+          "current_available_stock": {
+            "type": "integer",
+            "title": "Current Available Stock"
+          },
+          "recommended_order_qty": {
+            "type": "integer",
+            "title": "Recommended Order Qty"
+          },
+          "estimated_order_amount": {
+            "type": "number",
+            "title": "Estimated Order Amount"
+          },
+          "coverage_days": {
+            "type": "number",
+            "title": "Coverage Days"
+          },
+          "stockout_risk_level": {
+            "type": "string",
+            "title": "Stockout Risk Level"
+          },
+          "key_driver_tags": {
+            "type": "string",
+            "title": "Key Driver Tags"
+          },
+          "model_version": {
+            "type": "string",
+            "title": "Model Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "store_id",
+          "state_id",
+          "cat_id",
+          "dept_id",
+          "item_id",
+          "abc_class",
+          "forecast_start_date",
+          "sell_price",
+          "sales_ma_7",
+          "sales_ma_28",
+          "pred_next_7d_sales",
+          "safety_buffer_days",
+          "safety_stock_qty",
+          "current_available_stock",
+          "recommended_order_qty",
+          "estimated_order_amount",
+          "coverage_days",
+          "stockout_risk_level",
+          "key_driver_tags",
+          "model_version"
+        ],
+        "title": "ReplenishmentAlertItem",
+        "description": "Single store-SKU replenishment recommendation record."
+      },
+      "ReplenishmentAlertsResponse": {
+        "properties": {
+          "total_matched": {
+            "type": "integer",
+            "title": "Total Matched",
+            "description": "Total matching SKUs before budget/limit slice."
+          },
+          "returned_count": {
+            "type": "integer",
+            "title": "Returned Count",
+            "description": "Number of SKUs returned after filtering."
+          },
+          "total_recommended_order_qty": {
+            "type": "integer",
+            "title": "Total Recommended Order Qty",
+            "description": "Sum of recommended order units."
+          },
+          "total_estimated_order_amount": {
+            "type": "number",
+            "title": "Total Estimated Order Amount",
+            "description": "Total estimated procurement cost ($)."
+          },
+          "max_budget": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Budget",
+            "description": "Optional procurement budget cap applied."
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ReplenishmentAlertItem"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total_matched",
+          "returned_count",
+          "total_recommended_order_qty",
+          "total_estimated_order_amount",
+          "items"
+        ],
+        "title": "ReplenishmentAlertsResponse",
+        "description": "Filtered and optionally budget-constrained replenishment priority list."
+      },
+      "SQLQueryRequest": {
+        "properties": {
+          "sql": {
+            "type": "string",
+            "title": "Sql",
+            "description": "Single DuckDB SELECT or WITH...SELECT query targeting only ads_*, dws_*, or ops_* tables."
+          },
+          "max_rows": {
+            "type": "integer",
+            "maximum": 10000.0,
+            "minimum": 1.0,
+            "title": "Max Rows",
+            "description": "Requested max rows (server clamps to SQL_MAX_ROWS=500).",
+            "default": 100
+          }
+        },
+        "type": "object",
+        "required": [
+          "sql"
+        ],
+        "title": "SQLQueryRequest",
+        "description": "Dynamic read-only SQL query payload guarded by sqlglot AST firewall."
+      },
+      "SQLQueryResponse": {
+        "properties": {
+          "columns": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Columns"
+          },
+          "row_count": {
+            "type": "integer",
+            "title": "Row Count"
+          },
+          "rows": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Rows"
+          },
+          "referenced_tables": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Referenced Tables"
+          },
+          "executed_sql": {
+            "type": "string",
+            "title": "Executed Sql"
+          }
+        },
+        "type": "object",
+        "required": [
+          "columns",
+          "row_count",
+          "rows",
+          "referenced_tables",
+          "executed_sql"
+        ],
+        "title": "SQLQueryResponse",
+        "description": "Result set returned by the read-only SQL gateway."
+      },
+      "ServiceHealthResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "Service status ('ok')."
+          },
+          "mode": {
+            "type": "string",
+            "title": "Mode",
+            "description": "Configured runtime mode ('local' or 'cluster')."
+          },
+          "duckdb_ready": {
+            "type": "boolean",
+            "title": "Duckdb Ready",
+            "description": "Whether DuckDB lakehouse file exists."
+          },
+          "whitelisted_tables": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Whitelisted Tables",
+            "description": "Accessible ads_*, dws_*, and ops_* tables."
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "mode",
+          "duckdb_ready",
+          "whitelisted_tables"
+        ],
+        "title": "ServiceHealthResponse",
+        "description": "Service liveness and available whitelisted lakehouse tables."
+      },
+      "SkuDemandAttributionResponse": {
+        "properties": {
+          "store_id": {
+            "type": "string",
+            "title": "Store Id"
+          },
+          "state_id": {
+            "type": "string",
+            "title": "State Id"
+          },
+          "cat_id": {
+            "type": "string",
+            "title": "Cat Id"
+          },
+          "dept_id": {
+            "type": "string",
+            "title": "Dept Id"
+          },
+          "item_id": {
+            "type": "string",
+            "title": "Item Id"
+          },
+          "abc_class": {
+            "type": "string",
+            "title": "Abc Class"
+          },
+          "forecast_start_date": {
+            "type": "string",
+            "title": "Forecast Start Date"
+          },
+          "pred_next_7d_sales": {
+            "type": "number",
+            "title": "Pred Next 7D Sales"
+          },
+          "safety_buffer_days": {
+            "type": "number",
+            "title": "Safety Buffer Days"
+          },
+          "safety_stock_qty": {
+            "type": "number",
+            "title": "Safety Stock Qty"
+          },
+          "current_available_stock": {
+            "type": "integer",
+            "title": "Current Available Stock"
+          },
+          "recommended_order_qty": {
+            "type": "integer",
+            "title": "Recommended Order Qty"
+          },
+          "estimated_order_amount": {
+            "type": "number",
+            "title": "Estimated Order Amount"
+          },
+          "coverage_days": {
+            "type": "number",
+            "title": "Coverage Days"
+          },
+          "stockout_risk_level": {
+            "type": "string",
+            "title": "Stockout Risk Level"
+          },
+          "key_driver_tags": {
+            "type": "string",
+            "title": "Key Driver Tags"
+          },
+          "sell_price": {
+            "type": "number",
+            "title": "Sell Price"
+          },
+          "price_ma_28": {
+            "type": "number",
+            "title": "Price Ma 28"
+          },
+          "price_discount_rate": {
+            "type": "number",
+            "title": "Price Discount Rate"
+          },
+          "sales_lag_1": {
+            "type": "number",
+            "title": "Sales Lag 1"
+          },
+          "sales_lag_7": {
+            "type": "number",
+            "title": "Sales Lag 7"
+          },
+          "sales_ma_7": {
+            "type": "number",
+            "title": "Sales Ma 7"
+          },
+          "sales_ma_28": {
+            "type": "number",
+            "title": "Sales Ma 28"
+          },
+          "sales_std_28": {
+            "type": "number",
+            "title": "Sales Std 28"
+          },
+          "sales_trend_ratio": {
+            "type": "number",
+            "title": "Sales Trend Ratio"
+          },
+          "next_7d_weekend_days": {
+            "type": "integer",
+            "title": "Next 7D Weekend Days"
+          },
+          "next_7d_event_days": {
+            "type": "integer",
+            "title": "Next 7D Event Days"
+          },
+          "next_7d_snap_days": {
+            "type": "integer",
+            "title": "Next 7D Snap Days"
+          },
+          "category_weekend_lift_pct": {
+            "type": "number",
+            "title": "Category Weekend Lift Pct"
+          },
+          "category_holiday_lift_pct": {
+            "type": "number",
+            "title": "Category Holiday Lift Pct"
+          },
+          "category_snap_lift_pct": {
+            "type": "number",
+            "title": "Category Snap Lift Pct"
+          },
+          "category_latest_mom_pct": {
+            "type": "number",
+            "title": "Category Latest Mom Pct"
+          },
+          "replenishment_formula_breakdown": {
+            "type": "string",
+            "title": "Replenishment Formula Breakdown"
+          }
+        },
+        "type": "object",
+        "required": [
+          "store_id",
+          "state_id",
+          "cat_id",
+          "dept_id",
+          "item_id",
+          "abc_class",
+          "forecast_start_date",
+          "pred_next_7d_sales",
+          "safety_buffer_days",
+          "safety_stock_qty",
+          "current_available_stock",
+          "recommended_order_qty",
+          "estimated_order_amount",
+          "coverage_days",
+          "stockout_risk_level",
+          "key_driver_tags",
+          "sell_price",
+          "price_ma_28",
+          "price_discount_rate",
+          "sales_lag_1",
+          "sales_lag_7",
+          "sales_ma_7",
+          "sales_ma_28",
+          "sales_std_28",
+          "sales_trend_ratio",
+          "next_7d_weekend_days",
+          "next_7d_event_days",
+          "next_7d_snap_days",
+          "category_weekend_lift_pct",
+          "category_holiday_lift_pct",
+          "category_snap_lift_pct",
+          "category_latest_mom_pct",
+          "replenishment_formula_breakdown"
+        ],
+        "title": "SkuDemandAttributionResponse",
+        "description": "Detailed demand drivers and safety-stock formula breakdown for one SKU."
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  },
+  "servers": [
+    {
+      "url": "http://host.docker.internal:8000",
+      "description": "LakePulse-AI FastAPI Data Gateway"
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+lakepulse_dbt:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: "{{ env_var('LAKEPULSE_DUCKDB_PATH', '../data/lakehouse/lakepulse.duckdb') }}"
+      threads: 2

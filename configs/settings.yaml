@@ -1,0 +1,40 @@
+# LakePulse-AI 业务口径与工程参数配置
+
+project:
+  name: "LakePulse-AI"
+  version: "0.1.0"
+
+data:
+  dataset: "walmart_m5"
+  # 本地轻量开发默认抽样（设为 full_dataset: true 可切换全量 10 店 3049 SKU）
+  full_dataset: false
+  sample_states:
+    - "CA"
+  sample_stores:
+    - "CA_1"
+    - "CA_2"
+
+spark:
+  local_master: "local[2]"
+  driver_memory: "2g"
+  shuffle_partitions: 4
+  arrow_enabled: true
+  ui_enabled: false
+
+analytics:
+  abc_thresholds:
+    A: 0.70
+    B: 0.90
+  windows:
+    short_window: 7
+    long_window: 28
+    forecast_horizon: 7
+
+replenishment:
+  safety_buffer_days:
+    A: 3.0
+    B: 2.0
+    C: 1.0
+  stockout_risk_coverage_days:
+    high_threshold: 3.0
+    medium_threshold: 7.0

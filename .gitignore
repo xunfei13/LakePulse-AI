@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+ENV/
+
+# Data & Artifacts
+data/raw/
+data/lakehouse/
+artifacts/models/
+artifacts/reports/
+artifacts/tools/
+*.duckdb
+*.duckdb.wal
+*.parquet
+
+# dbt
+dbt_project/target/
+dbt_project/logs/
+dbt_project/dbt_packages/
+dbt_project/.user.yml
+
+# Logs & Environment
+logs/
+.env
+
+# Testing & Linting
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
